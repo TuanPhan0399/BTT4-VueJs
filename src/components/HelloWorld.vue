@@ -1,58 +1,379 @@
 <template>
   <div class="hello">
-    <h1>{{ msg }}</h1>
-    <p>
-      For a guide and recipes on how to configure / customize this project,<br>
-      check out the
-      <a href="https://cli.vuejs.org" target="_blank" rel="noopener">vue-cli documentation</a>.
-    </p>
-    <h3>Installed CLI Plugins</h3>
-    <ul>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-babel" target="_blank" rel="noopener">babel</a></li>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-eslint" target="_blank" rel="noopener">eslint</a></li>
-    </ul>
-    <h3>Essential Links</h3>
-    <ul>
-      <li><a href="https://vuejs.org" target="_blank" rel="noopener">Core Docs</a></li>
-      <li><a href="https://forum.vuejs.org" target="_blank" rel="noopener">Forum</a></li>
-      <li><a href="https://chat.vuejs.org" target="_blank" rel="noopener">Community Chat</a></li>
-      <li><a href="https://twitter.com/vuejs" target="_blank" rel="noopener">Twitter</a></li>
-      <li><a href="https://news.vuejs.org" target="_blank" rel="noopener">News</a></li>
-    </ul>
-    <h3>Ecosystem</h3>
-    <ul>
-      <li><a href="https://router.vuejs.org" target="_blank" rel="noopener">vue-router</a></li>
-      <li><a href="https://vuex.vuejs.org" target="_blank" rel="noopener">vuex</a></li>
-      <li><a href="https://github.com/vuejs/vue-devtools#vue-devtools" target="_blank" rel="noopener">vue-devtools</a></li>
-      <li><a href="https://vue-loader.vuejs.org" target="_blank" rel="noopener">vue-loader</a></li>
-      <li><a href="https://github.com/vuejs/awesome-vue" target="_blank" rel="noopener">awesome-vue</a></li>
-    </ul>
+    <header class="header">
+      <h1>My To Do list of Tuan Phan</h1>
+    </header>
+    <div class="wrapper">
+      <div class="task-input">
+        <i
+          ref="iElement"
+          v-show="todos.length"
+          class="fa-solid fa-angle-down"
+          :class="{ tickAll: countFun === 0 }"
+          @click="toggleAll()"
+        >
+        </i>
+        <input
+          type="text"
+          v-model="newTodo"
+          @keyup.enter="addTodo()"
+          placeholder="What needs to be done?"
+        />
+      </div>
+      <ul
+        v-for="(todo, index) in filtersTodos"
+        :key="todo.idU"
+        class="task-box"
+      >
+        <li class="task">
+          <div>
+            <input type="checkbox" v-model="todo.status" />
+            <input
+              ref="valueInput"
+              @dblclick="editTask(index)"
+              type="text"
+              :value="todo.name"
+              :class="{
+                checked: todo.status === true,
+              }"
+              @blur="doneEdit(todo, index)"
+              @keyup.enter="doneEdit(todo, index)"
+              readOnly
+            />
+          </div>
+          <div class="task-close">
+            <i @click="deleteTask(index)" class="fa-solid fa-xmark"></i>
+          </div>
+        </li>
+      </ul>
+      <div v-show="todos.length" class="controls">
+        <span>
+          <strong class="count">{{ countFun }}</strong> items left
+        </span>
+        <div class="filters">
+          <span
+            id="all"
+            :class="{ active: visibility === 'all' }"
+            @click="setFilterType('all')"
+          >
+            All
+          </span>
+          <span
+            id="pending"
+            :class="{ active: visibility === 'pending' }"
+            @click="setFilterType('pending')"
+          >
+            Active
+          </span>
+          <span
+            id="completed"
+            :class="{ active: visibility === 'completed' }"
+            @click="setFilterType('completed')"
+          >
+            Completed
+          </span>
+        </div>
+        <button
+          class="clearBtn"
+          :class="{ clearAll: todos.length <= countFun }"
+          @click="clearTask()"
+        >
+          Clear Completed
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
+const STORAGE_KEY = "todo-list";
 export default {
-  name: 'HelloWorld',
-  props: {
-    msg: String
-  }
-}
+  name: "ToDo",
+
+  data() {
+    return {
+      newTodo: "",
+      visibility: "all",
+      count: 0,
+      todos: JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"),
+    };
+  },
+  watch: {
+    todos: {
+      handler(todos) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+      },
+      deep: true,
+    },
+  },
+  computed: {
+    countFun: function () {
+      let countF = this.count;
+      const todos2 = this.todos.filter((todo) => todo.status === false);
+      countF = todos2.length;
+      return countF;
+    },
+    filtersTodos: function () {
+      return this.todos.filter((todo) => {
+        switch (this.visibility) {
+          case "pending":
+            return todo.status === false;
+          case "completed":
+            return todo.status;
+          default:
+            return true;
+        }
+      });
+    },
+  },
+  methods: {
+    toggleAll() {
+      if (
+        this.todos.filter((todo) => todo.status === true).length ===
+        this.todos.length
+      ) {
+        this.todos.forEach((item) => {
+          item.status = false;
+        });
+      } else {
+        this.todos.forEach((item) => {
+          item.status = true;
+        });
+      }
+    },
+    setFilterType(visibility) {
+      this.visibility = visibility;
+    },
+    addTodo() {
+      if (this.newTodo.length === 0) return;
+      this.todos.push({
+        name: this.newTodo,
+        status: false,
+        idU: Date.now(),
+      });
+      this.newTodo = "";
+    },
+    deleteTask(index) {
+      this.todos.splice(index, 1);
+    },
+    editTask(index) {
+      index = Number(index);
+      let input = this.$refs.valueInput[index];
+      const taskClose = input.parentElement.parentElement.lastElementChild;
+      const inputCheck = input.parentElement.firstElementChild;
+      taskClose.style.opacity = "0";
+      inputCheck.style.opacity = "0";
+      input.style.border = "1px solid #999";
+      input.readOnly = false;
+      input.setSelectionRange(input.value.length, input.value.length);
+      if (input.classList.contains("checked")) {
+        input.classList.remove("checked");
+      }
+    },
+    doneEdit(todo, index) {
+      if (!this.editTask) return;
+      index = Number(index);
+      let input = this.$refs.valueInput[index];
+      todo.name = input.value.trim();
+      if (!todo.name) {
+        this.todos.splice(this.todos.indexOf(todo), 1);
+      }
+      const taskClose = input.parentElement.parentElement.lastElementChild;
+      const inputCheck = input.parentElement.firstElementChild;
+      taskClose.style.opacity = "1";
+      inputCheck.style.opacity = "1";
+      input.style.border = "none";
+      input.readOnly = true;
+      if (todo.status === true) {
+        input.classList.add("checked");
+      }
+    },
+    clearTask() {
+      const todos3 = this.todos.filter((todo) => todo.status !== true);
+      return (this.todos = todos3);
+    },
+  },
+};
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
-h3 {
-  margin: 40px 0 0;
-}
-ul {
-  list-style-type: none;
+<style>
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");
+
+* {
+  margin: 0;
   padding: 0;
+  box-sizing: border-box;
 }
-li {
-  display: inline-block;
-  margin: 0 10px;
+
+body {
+  background-image: linear-gradient(120deg, #8baaa6, #49a196);
+  font-family: "Poppins", sans-serif;
+  min-height: 150vh;
+  overflow: hidden;
 }
-a {
-  color: #42b983;
+
+.header {
+  font-size: 1.5rem;
+}
+
+.header h1 {
+  min-height: 20vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.wrapper {
+  max-width: 500px;
+  margin: 0 auto;
+  background: #fff;
+  border-radius: 7px;
+  padding-top: 28px;
+  padding-bottom: 22px;
+}
+
+.task-input {
+  height: 52px;
+  padding: 0 25px;
+  position: relative;
+}
+.task-input i {
+  position: absolute;
+  top: 50%;
+  transform: translate(20px, -50%);
+  opacity: 0.5;
+  cursor: pointer;
+  font-size: 2.9rem;
+  left: 4%;
+}
+.task-input i.tickAll {
+  opacity: 1;
+}
+
+.task-input input {
+  height: 100%;
+  width: 100%;
+  font-size: 18px;
+  border-radius: 5px;
+  border: 1px solid #999;
+  padding: 0 20px 0 66px;
+  outline: none;
+}
+
+.task-input input::placeholder {
+  color: #bfbfbf;
+}
+
+.controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 25px;
+}
+.filters span {
+  cursor: pointer;
+  margin: 0 8px;
+  font-size: 17px;
+}
+
+.filters span:first-child {
+  margin-left: 0;
+}
+
+.filters span.active {
+  color: #49a196;
+}
+
+.clearAll {
+  opacity: 0;
+}
+
+.controls .clearBtn {
+  outline: none;
+  border: none;
+  color: #fff;
+  border-radius: 4px;
+  padding: 7px 13px;
+  background: #49a196;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.task-box {
+  margin: 20px 25px;
+}
+
+.task-box .task {
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 17px;
+  padding-bottom: 16px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid #ccc;
+}
+
+.task > div {
+  position: relative;
+}
+
+.task div > span input {
+  width: 25rem;
+  height: 2.3rem;
+  position: absolute;
+  top: -14px;
+  font-size: 20px;
+  padding-left: 10px;
+  opacity: 0.5;
+  left: 52%;
+}
+
+.task-box .task:last-child {
+  margin-bottom: 0;
+}
+
+.task div {
+  display: flex;
+  align-items: center;
+}
+
+.task div input {
+  margin-left: 20px;
+}
+.task div input[type="checkbox"] {
+  height: 2rem;
+  width: 2rem;
+}
+
+.task div input[type="text"] {
+  height: 2.9rem;
+  width: 25rem;
+  font-size: 1.8rem;
+  border: none;
+  background: #fff;
+  outline: none;
+}
+
+.task-close {
+  cursor: pointer;
+}
+
+.task-close i {
+  position: absolute;
+  opacity: 0;
+  padding: 5px 0;
+  margin-right: 7px;
+  font-size: 1.9rem;
+  left: -2rem;
+}
+
+.task-box .task:hover i {
+  opacity: 1;
+}
+.checked {
+  text-decoration: line-through;
+  opacity: 0.5;
 }
 </style>
